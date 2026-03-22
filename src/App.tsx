@@ -143,7 +143,14 @@ export default function App() {
     return (saved as 'light' | 'dark') || 'light';
   });
   const [showAddRepair, setShowAddRepair] = useState(false);
+  const [selectedCustomerForHistory, setSelectedCustomerForHistory] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Clear search when switching tabs
+  useEffect(() => {
+    setSearchQuery('');
+  }, [activeTab]);
+
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [shop, setShop] = useState<Shop | null>(null);
@@ -579,7 +586,7 @@ export default function App() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input 
                     type="text" 
-                    placeholder="Search by device or customer..."
+                    placeholder="Search by device, customer or phone..."
                     className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -591,7 +598,8 @@ export default function App() {
                 {repairs
                   .filter(r => 
                     r.deviceModel.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                    r.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+                    r.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.customerPhone.includes(searchQuery)
                   )
                   .map(repair => (
                     <RepairItem 
@@ -645,6 +653,7 @@ export default function App() {
                       key={customer.id} 
                       customer={customer} 
                       repairs={repairs.filter(r => r.customerPhone === customer.phone)}
+                      onViewHistory={() => setSelectedCustomerForHistory(customer)}
                     />
                   ))
                 }
@@ -763,6 +772,85 @@ export default function App() {
                   </Button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Customer History Modal --- */}
+      <AnimatePresence>
+        {selectedCustomerForHistory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              onClick={() => setSelectedCustomerForHistory(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+                <div>
+                  <h3 className="text-xl font-bold">{selectedCustomerForHistory.name}</h3>
+                  <p className="text-sm text-slate-500">{selectedCustomerForHistory.phone}</p>
+                </div>
+                <button onClick={() => setSelectedCustomerForHistory(null)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                  <ArrowLeft size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20">
+                    <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Total Jobs</p>
+                    <p className="text-xl font-bold">{repairs.filter(r => r.customerPhone === selectedCustomerForHistory.phone).length}</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20">
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">Total Value</p>
+                    <p className="text-xl font-bold">₹{repairs.filter(r => r.customerPhone === selectedCustomerForHistory.phone).reduce((acc, curr) => acc + curr.estimatedCost, 0)}</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 col-span-2 sm:col-span-1">
+                    <p className="text-xs text-slate-500 font-medium mb-1">Customer Since</p>
+                    <p className="text-sm font-bold">{format(new Date(repairs.filter(r => r.customerPhone === selectedCustomerForHistory.phone).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0]?.createdAt || new Date()), 'MMM d, yyyy')}</p>
+                  </div>
+                </div>
+
+                <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Clock size={18} className="text-blue-600" />
+                  Repair History
+                </h4>
+
+                <div className="space-y-3">
+                  {repairs
+                    .filter(r => r.customerPhone === selectedCustomerForHistory.phone)
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map(repair => (
+                      <div key={repair.id} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-white">{repair.deviceModel}</p>
+                            <p className="text-xs text-slate-500">{format(new Date(repair.createdAt), 'MMMM d, yyyy • h:mm a')}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-blue-600">₹{repair.estimatedCost}</p>
+                            <Badge variant={repair.status === 'Fixed' ? 'success' : repair.status === 'Working' ? 'info' : 'warning'}>
+                              {repair.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Issue Reported</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 italic">"{repair.issueDescription}"</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
@@ -895,11 +983,11 @@ function RepairItem({ repair, onStatusUpdate, onNotify }: RepairItemProps) {
 interface CustomerCardProps {
   customer: Customer;
   repairs: Repair[];
+  onViewHistory: () => void;
   key?: any;
 }
 
-function CustomerCard({ customer, repairs }: CustomerCardProps) {
-  const [expanded, setExpanded] = useState(false);
+function CustomerCard({ customer, repairs, onViewHistory }: CustomerCardProps) {
   const totalSpent = repairs.reduce((acc, curr) => acc + curr.estimatedCost, 0);
 
   return (
@@ -927,35 +1015,14 @@ function CustomerCard({ customer, repairs }: CustomerCardProps) {
         </div>
         
         <Button 
-          variant="ghost" 
+          variant="outline" 
           size="sm" 
-          className="w-full justify-between text-xs"
-          onClick={() => setExpanded(!expanded)}
+          className="w-full justify-center text-xs gap-2"
+          onClick={onViewHistory}
         >
-          {expanded ? 'Hide History' : 'View History'}
-          <ChevronRight size={14} className={cn("transition-transform", expanded && "rotate-90")} />
+          <Clock size={14} />
+          View Detailed History
         </Button>
-
-        <AnimatePresence>
-          {expanded && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden pt-2 space-y-2"
-            >
-              {repairs.map(r => (
-                <div key={r.id} className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-xs flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">{r.deviceModel}</p>
-                    <p className="text-slate-400">{format(new Date(r.createdAt), 'MMM d, yyyy')}</p>
-                  </div>
-                  <p className="font-bold">₹{r.estimatedCost}</p>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </Card>
   );

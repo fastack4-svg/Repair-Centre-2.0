@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Shop Rules: Only the owner can read/write their own shop profile
+    match /shops/{shopId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == shopId;
+    }
+
+    // Repair Rules: Only the shop owner can read/write repairs belonging to their shop
+    match /repairs/{repairId} {
+      allow read, write: if isAuthenticated() && (
+        (resource == null || resource.data.shopId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.shopId == request.auth.uid)
+      );
+    }
+
+    // Customer Rules: Only the shop owner can read/write customers belonging to their shop
+    match /customers/{customerId} {
+      allow read, write: if isAuthenticated() && (
+        (resource == null || resource.data.shopId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.shopId == request.auth.uid)
+      );
+    }
+
+    // Admin/Developer Fallback
+    match /{document=**} {
+      allow read, write: if isAuthenticated() && (
+        request.auth.token.email == "fastack4@gmail.com" ||
+        request.auth.uid == "pKnBU2jqYScOgeIreIGA37Nq0pq1"
+      );
+    }
+  }
+}

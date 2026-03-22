@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "Shop": {
+      "title": "Shop",
+      "description": "A mobile repair shop profile.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the shop." },
+        "ownerEmail": { "type": "string", "description": "The email of the shop owner." },
+        "ownerUid": { "type": "string", "description": "The UID of the shop owner." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerEmail", "ownerUid"]
+    },
+    "Repair": {
+      "title": "Repair",
+      "description": "A repair job sheet.",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "deviceModel": { "type": "string" },
+        "issueDescription": { "type": "string" },
+        "estimatedCost": { "type": "number" },
+        "advancePaid": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["Received", "Working", "Fixed"] },
+        "shopId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerName", "customerPhone", "deviceModel", "status", "shopId"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "A unique customer record.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "shopId": { "type": "string" },
+        "lastRepairDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "shopId"]
+    }
+  },
+  "firestore": {
+    "/shops/{shopId}": {
+      "schema": "Shop",
+      "description": "Shop profiles."
+    },
+    "/repairs/{repairId}": {
+      "schema": "Repair",
+      "description": "Repair job sheets."
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Unique customer records."
+    }
+  }
+}
